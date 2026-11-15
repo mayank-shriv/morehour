@@ -11,6 +11,8 @@ dotenv.config({ path: fileURLToPath(new URL('../../.env', import.meta.url)) });
 
 const app = express();
 const port = Number(process.env.PORT) || 4000;
+const clientDistPath = fileURLToPath(new URL('../../client/dist', import.meta.url));
+const clientIndexPath = fileURLToPath(new URL('../../client/dist/index.html', import.meta.url));
 
 if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET is missing. Copy .env.example to .env in the project root and set a long random secret.');
 if (!process.env.MONGODB_URI) throw new Error('MONGODB_URI is missing. Set it in the project root .env file.');
@@ -22,6 +24,11 @@ app.use('/api/auth', authRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/analytics', analyticsRoutes);
 
+app.use(express.static(clientDistPath));
+app.get('*', (req, res, next) => {
+  if (req.path === '/api' || req.path.startsWith('/api/')) return next();
+  res.sendFile(clientIndexPath);
+});
 app.use((req, res) => res.status(404).json({ message: `Route not found: ${req.method} ${req.path}` }));
 app.use((error, _req, res, _next) => {
   if (error.name === 'ValidationError') {

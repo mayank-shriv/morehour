@@ -22,7 +22,25 @@ A full-stack study timer with a responsive React dashboard, protected Express AP
    npm run dev
    ```
 
-The React app is available at `http://localhost:5173`; Vite proxies `/api` requests to the Express API at `http://localhost:4000`. Set `CLIENT_ORIGIN` if the client runs at another origin. For a production frontend, serve the output of `npm run build` from a static host and point it at the API.
+The React app is available at `http://localhost:5173`; Vite proxies `/api` requests to the Express API at `http://localhost:4000`. Set `CLIENT_ORIGIN` if the client runs at another origin.
+
+## Deploy on Render
+
+Deploy the client and API together as one Render Web Service:
+
+1. Push this repository to GitHub and create a **Web Service** in Render connected to it.
+2. Use the repository root as the **Root Directory**. Set:
+   - **Build Command:** `npm install && npm run build`
+   - **Start Command:** `npm start`
+   - **Health Check Path:** `/api/health`
+3. Add these environment variables in Render's **Environment** settings:
+   - `MONGODB_URI` — your MongoDB Atlas connection string
+   - `JWT_SECRET` — a newly generated, long random secret
+   - `NODE_VERSION` — `20`
+4. In MongoDB Atlas, make sure the database user can access the database and that Atlas network access permits connections from Render. Render's outbound IPs may change; use a static outbound IP option if available, or configure the appropriate Atlas IP access list for your plan.
+5. Deploy. Open the Render service URL; the React app and `/api` endpoints use the same domain, so no `CLIENT_ORIGIN` setting is needed for this setup. Check `https://<your-render-service>.onrender.com/api/health` if you want to verify the API is up.
+
+Do not set `PORT` manually; Render provides it. Do not put secrets in `VITE_*` variables, as those are exposed in the browser bundle.
 
 If Atlas reports `bad auth`, check the database user's username/password (these are separate from an Atlas website login), ensure that user is allowed to access the cluster, and URL-encode reserved characters in the password inside the connection URI. Do not share or commit `.env`.
 
