@@ -52,7 +52,7 @@ If Atlas reports `bad auth`, check the database user's username/password (these 
 
 ## Tracking behavior
 
-Starting a tracking session begins a study activity. Study and break buttons close the current activity and open the next one. Finishing the day closes the active activity and saves the final totals. A MongoDB partial unique index prevents more than one open session per user. Session and activity durations are stored in milliseconds; the UI presents them as `HH:MM:SS`.
+Starting a tracking session begins a study activity. Study and break buttons close the current activity and open the next one. Finishing the day or signing out closes the active activity and saves the final totals. A MongoDB partial unique index prevents more than one open session per user. Session and activity durations are stored in milliseconds; the UI presents them as `HH:MM:SS`.
 
 The dashboard, history, and analytics endpoints require a bearer token. User timezone is captured at registration and used for date-based reports. Analytics includes the last seven days or the current calendar month.
 

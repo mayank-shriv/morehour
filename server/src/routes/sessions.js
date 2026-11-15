@@ -2,6 +2,7 @@ import { Router } from 'express';
 import StudySession from '../models/StudySession.js';
 import { requireAuth } from '../middleware/auth.js';
 import { dateKeyAt, isDateKey, serializeSession } from '../utils/time.js';
+import { finishSession } from '../utils/session.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -84,10 +85,7 @@ router.post('/end', async (req, res, next) => {
     const session = await StudySession.findOne({ userId: req.user.id, logoutAt: null });
     if (!session) return res.status(409).json({ message: 'There is no active tracking session to finish.' });
     const now = new Date();
-    closeActivity(session, now);
-    session.logoutAt = now;
-    session.status = 'logged_out';
-    refreshDurations(session);
+    finishSession(session, now);
     await session.save();
     res.json({ session: serializeSession(session, now) });
   } catch (error) {

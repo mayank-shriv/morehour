@@ -2,7 +2,9 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import StudySession from '../models/StudySession.js';
 import { requireAuth } from '../middleware/auth.js';
+import { finishSession } from '../utils/session.js';
 
 const router = Router();
 
@@ -63,7 +65,18 @@ router.post('/login', async (req, res, next) => {
   }
 });
 
-router.post('/logout', requireAuth, (_req, res) => res.json({ message: 'Signed out successfully.' }));
+router.post('/logout', requireAuth, async (req, res, next) => {
+  try {
+    const session = await StudySession.findOne({ userId: req.user.id, logoutAt: null });
+    if (session) {
+      finishSession(session);
+      await session.save();
+    }
+    res.json({ message: 'Signed out successfully.' });
+  } catch (error) {
+    next(error);
+  }
+});
 
 router.get('/me', requireAuth, (req, res) => res.json({ user: publicUser(req.user) }));
 
