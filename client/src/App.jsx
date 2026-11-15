@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react
 import {
   Activity, ArrowUpRight, BarChart3, Bell, CalendarDays,
   Check, ChevronDown, ChevronLeft, ChevronRight, Clock3, Coffee, Command,
-  Download, LayoutDashboard, LogOut, Menu, Moon, Play, Settings,
+  Download, LayoutDashboard, LogOut, Menu, Play, Settings,
   ShieldCheck, Sparkles, Sun, Target, UserRound, X
 } from 'lucide-react';
 import api, { getErrorMessage } from './api.js';
@@ -145,7 +145,8 @@ function ActivityTimeline({ sessions = [], now, timezone }) {
 function Dashboard({ user, current, onAction, busy, now, setPage }) {
   const totals = daySessionTotals(current?.today?.sessions, current?.session, now);
   const active = current?.session;
-  const activeTime = active ? Math.max(0, now - new Date(active.loginAt).getTime()) : 0;
+  const activeActivity = active?.activities.find((activity) => !activity.endTime);
+  const activeActivityTime = activeActivity ? activityDuration(activeActivity, now) : 0;
   const progress = totals.studyDuration + totals.breakDuration
     ? Math.round((totals.studyDuration / (totals.studyDuration + totals.breakDuration)) * 100)
     : 0;
@@ -156,7 +157,7 @@ function Dashboard({ user, current, onAction, busy, now, setPage }) {
     <>
       <div className="welcome-row">
         <div><div className="eyebrow muted-eyebrow">{dateLabel(new Date(), { weekday: 'long', month: 'long', day: 'numeric' }, user.timezone)}</div><h1>{greeting}, {user.name.split(' ')[0]} <span className="wave">✳</span></h1><p>A good day to make progress on what matters.</p></div>
-        <div className="today-pill"><span className={`status-dot ${active ? active.status : ''}`} />{active ? active.status === 'break' ? 'On Break' : 'Studying' : 'Logged Out'}<ChevronDown size={14} /></div>
+        <div className="today-pill"><span className={`status-dot ${active ? active.status : ''}`} />{active ? active.status === 'break' ? 'On Break' : 'Studying' : 'Logged Out'}</div>
       </div>
       <section className={`focus-banner ${active?.status === 'break' ? 'is-break' : ''}`}>
         <div className="focus-copy">
@@ -172,7 +173,7 @@ function Dashboard({ user, current, onAction, busy, now, setPage }) {
             </>}
           </div>
         </div>
-        <div className="focus-clock"><span>{active ? 'SESSION TIME' : 'READY WHEN YOU ARE'}</span><strong>{active ? durationLabel(activeTime) : '00:00:00'}</strong><div><span className="pulse-dot" />{active ? `${active.status === 'break' ? 'On a break' : 'Focused'} since ${timeLabel(active.activities.at(-1)?.startTime, user.timezone)}` : 'Your next focus starts here'}</div></div>
+        <div className="focus-clock"><span>{active ? active.status === 'break' ? 'BREAK TIME' : 'STUDY TIME' : 'READY WHEN YOU ARE'}</span><strong>{active ? durationLabel(activeActivityTime) : '00:00:00'}</strong><div><span className="pulse-dot" />{active ? `${active.status === 'break' ? 'On a break' : 'Focused'} since ${timeLabel(activeActivity?.startTime, user.timezone)}` : 'Your next focus starts here'}</div></div>
         <div className="banner-sun" />
       </section>
       <section className="stats-grid">
@@ -185,7 +186,7 @@ function Dashboard({ user, current, onAction, busy, now, setPage }) {
         <article className="card rhythm-card">
           <div className="section-heading"><div><span className="section-overline">TODAY AT A GLANCE</span><h3>Your daily rhythm</h3></div><button className="text-button" onClick={() => setPage('analytics')}>View analytics <ChevronRight size={15} /></button></div>
           <div className="rhythm-content">
-            <div className="donut-wrap"><div className="donut-graphic" style={{ background: `conic-gradient(#608568 ${progress}%, #e5a16f ${progress}% 100%)` }}><div className="donut-hole"><strong>{progress}%</strong><span>in focus</span></div></div></div>
+            <div className="donut-wrap"><div className="donut-graphic" style={{ background: `conic-gradient(#e98420 ${progress}%, #f2c58b ${progress}% 100%)` }}><div className="donut-hole"><strong>{progress}%</strong><span>in focus</span></div></div></div>
             <div className="rhythm-legend"><div><span className="legend-dot green" /><span>Study time</span><strong>{durationLabel(totals.studyDuration, true)}</strong></div><div><span className="legend-dot orange" /><span>Break time</span><strong>{durationLabel(totals.breakDuration, true)}</strong></div><p>{totals.studyDuration ? `A ${progress}% focus ratio. Keep finding your flow.` : 'Start your first session to see your daily rhythm.'}</p></div>
           </div>
         </article>
@@ -238,7 +239,7 @@ function HistoryPage({ now, timezone }) {
   </div>;
 }
 
-function ProfilePage({ user, updateUser, onSignOut, dark, toggleTheme }) {
+function ProfilePage({ user, updateUser, onSignOut }) {
   const [name, setName] = useState(user.name);
   const [timezone, setTimezone] = useState(user.timezone);
   const [message, setMessage] = useState('');
@@ -257,7 +258,7 @@ function ProfilePage({ user, updateUser, onSignOut, dark, toggleTheme }) {
     <article className="card profile-card"><div className="profile-header"><div className="profile-avatar">{user.name.split(' ').map((word) => word[0]).slice(0, 2).join('').toUpperCase()}</div><div><h3>{user.name}</h3><p>{user.email}</p></div><span className="member-badge"><Check size={13} /> MEMBER</span></div>
       <form className="profile-form" onSubmit={save}><div className="settings-title"><UserRound size={17} /><div><strong>Personal details</strong><span>Update your name and preferred timezone.</span></div></div><label>Full name<input value={name} onChange={(event) => setName(event.target.value)} required /></label><label>Timezone<input value={timezone} onChange={(event) => setTimezone(event.target.value)} placeholder="e.g. Europe/London" required /><span className="field-note">Use an IANA timezone, like America/New_York.</span></label>{message && <div className="success-message"><Check size={14} />{message}</div>}{error && <div className="inline-error">{error}</div>}<button className="button button-dark" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}<ChevronRight size={16} /></button></form>
     </article>
-    <article className="card settings-card"><div className="settings-title"><Sun size={17} /><div><strong>Appearance</strong><span>Choose the look that works for you.</span></div></div><button className="setting-row" onClick={toggleTheme}><span className="setting-label">{dark ? <Moon size={16} /> : <Sun size={16} />}{dark ? 'Dark appearance' : 'Light appearance'}</span><span className={`switch ${dark ? 'on' : ''}`}><i /></span></button></article>
+    <article className="card settings-card"><div className="settings-title"><Sun size={17} /><div><strong>Appearance</strong><span>White and orange, throughout the app.</span></div></div><div className="appearance-swatches" aria-label="White and orange theme"><span /><span /></div></article>
     <article className="card settings-card signout-card"><div className="settings-title"><ShieldCheck size={17} /><div><strong>Your account</strong><span>Your tracking history is saved securely.</span></div></div><button className="button button-outline signout-button" onClick={onSignOut}><LogOut size={15} /> Sign out</button></article>
   </div>;
 }
@@ -272,7 +273,6 @@ function App() {
   const [now, setNow] = useState(Date.now());
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState('');
-  const [dark, setDark] = useState(() => localStorage.getItem('study-theme') === 'dark');
   const [mobileNav, setMobileNav] = useState(false);
   const [profileMenu, setProfileMenu] = useState(false);
   const [loading, setLoading] = useState(Boolean(token));
@@ -320,11 +320,6 @@ function App() {
   }, [clearAuth]);
 
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', dark);
-    localStorage.setItem('study-theme', dark ? 'dark' : 'light');
-  }, [dark]);
-
-  useEffect(() => {
     if (!toast) return undefined;
     const timeout = window.setTimeout(() => setToast(''), 3500);
     return () => window.clearTimeout(timeout);
@@ -366,13 +361,13 @@ function App() {
     ? <Dashboard user={user} current={current} onAction={performAction} busy={busy} now={now} setPage={setPage} />
     : page === 'history' ? <HistoryPage now={now} timezone={user.timezone} />
       : page === 'analytics' ? <Suspense fallback={<div className="card chart-loading">Loading your analytics…</div>}><AnalyticsPage timezone={user.timezone} /></Suspense>
-        : <ProfilePage user={user} updateUser={updateUser} onSignOut={signOut} dark={dark} toggleTheme={() => setDark(!dark)} />;
+        : <ProfilePage user={user} updateUser={updateUser} onSignOut={signOut} />;
 
   return <div className="app-shell">
     {mobileNav && <button className="mobile-scrim" onClick={() => setMobileNav(false)} aria-label="Close navigation" />}
     <aside className={`sidebar ${mobileNav ? 'sidebar-open' : ''}`}>
       <div className="brand flex items-center gap-2.5"><span className="brand-mark"><Command size={18} /></span><span>Study Time<span className="brand-dot">.</span></span></div>
-      <div className="workspace-label">WORKSPACE <ChevronDown size={13} /></div>
+      <div className="workspace-label">WORKSPACE</div>
       <nav className="main-nav" aria-label="Main navigation">
         {navItems.map(({ id, label, icon: Icon }) => <button key={id} className={`nav-item ${page === id ? 'selected' : ''}`} onClick={() => { setPage(id); setMobileNav(false); }}><Icon size={17} strokeWidth={1.8} /><span>{label}</span>{id === 'dashboard' && current?.session && <i className="nav-live" />}</button>)}
       </nav>
@@ -383,10 +378,10 @@ function App() {
       </div>
     </aside>
     <main className="main-panel">
-      <header className="topbar"><div className="topbar-left"><button className="mobile-menu icon-button" onClick={() => setMobileNav(true)} aria-label="Open menu"><Menu size={19} /></button><div className="breadcrumbs"><span>Workspace</span><ChevronRight size={14} /><strong>{pageTitle}</strong></div></div><div className="topbar-actions"><span className="topbar-date"><CalendarDays size={15} />{dateLabel(new Date(), { month: 'short', day: 'numeric' }, user.timezone)}</span><button className="icon-button theme-toggle" onClick={() => setDark(!dark)} aria-label="Toggle dark mode">{dark ? <Sun size={17} /> : <Moon size={17} />}</button><button className="icon-button notification-button" aria-label="Notifications"><Bell size={17} /><i /></button><button className="topbar-avatar" onClick={() => setPage('profile')}>{user.name.split(' ').map((word) => word[0]).slice(0, 2).join('').toUpperCase()}</button></div></header>
+      <header className="topbar"><div className="topbar-left"><button className="mobile-menu icon-button" onClick={() => setMobileNav(true)} aria-label="Open menu"><Menu size={19} /></button><div className="breadcrumbs"><span>Workspace</span><ChevronRight size={14} /><strong>{pageTitle}</strong></div></div><div className="topbar-actions"><span className="topbar-date"><CalendarDays size={15} />{dateLabel(new Date(), { month: 'short', day: 'numeric' }, user.timezone)}</span><button className="icon-button notification-button" onClick={() => setToast('You’re all caught up. No new notifications.')} aria-label="Notifications"><Bell size={17} /></button><button className="topbar-avatar" onClick={() => setPage('profile')}>{user.name.split(' ').map((word) => word[0]).slice(0, 2).join('').toUpperCase()}</button></div></header>
       <div className="page-wrap">{mainContent}<footer className="page-footer"><span>Make time for what matters <span className="footer-spark">✳</span></span><span>STUDY TIME · STUDY WITH INTENTION</span></footer></div>
     </main>
-    {toast && <div className="toast"><span className="toast-check"><Check size={14} /></span>{toast}<button onClick={() => setToast('')} aria-label="Dismiss"><X size={15} /></button></div>}
+    {toast && <div className="toast" role="status" aria-live="polite"><span className="toast-check"><Check size={14} /></span>{toast}<button onClick={() => setToast('')} aria-label="Dismiss"><X size={15} /></button></div>}
   </div>;
 }
 
